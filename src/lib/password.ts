@@ -5,9 +5,10 @@ import { hash, verify } from '@node-rs/argon2';
 /**
  * Password checking for the single admin account.
  *
- * `ADMIN_PASSWORD_HASH` (argon2) is the supported production path — generate one
- * with `npm run hash-password`. `ADMIN_PASSWORD` is a plaintext escape hatch for
- * local development only, and refuses to work in production.
+ * Only an argon2 hash in `ADMIN_PASSWORD_HASH` is ever verified in production.
+ * Docker installs set a plaintext `ADMIN_PASSWORD` instead and the container
+ * entrypoint hashes it at start-up, so the value reaching this module is still a
+ * hash. Reading the plaintext directly stays a development-only path.
  */
 export async function checkPassword(candidate: string): Promise<boolean> {
   const stored = process.env.ADMIN_PASSWORD_HASH;
@@ -23,12 +24,14 @@ export async function checkPassword(candidate: string): Promise<boolean> {
   const plain = process.env.ADMIN_PASSWORD;
   if (plain) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('ADMIN_PASSWORD is not permitted in production — set ADMIN_PASSWORD_HASH instead.');
+      throw new Error(
+        'A production server will not compare a plaintext ADMIN_PASSWORD. Run in Docker, which hashes it at start-up, or set ADMIN_PASSWORD_HASH.',
+      );
     }
     return timingSafeCompare(candidate, plain);
   }
 
-  throw new Error('No admin password configured. Set ADMIN_PASSWORD_HASH (see README).');
+  throw new Error('No admin password configured. Set ADMIN_PASSWORD (see README).');
 }
 
 export async function hashPassword(plain: string): Promise<string> {
