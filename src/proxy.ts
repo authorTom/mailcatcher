@@ -10,7 +10,17 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
  * The export routes are deliberately absent: they verify the session themselves
  * as well, so contact data is never one proxy misconfiguration away from public.
  */
-const PUBLIC_PREFIXES = ['/f/', '/form/', '/login', '/embed.js', '/api/health', '/_next/', '/favicon'];
+const PUBLIC_PREFIXES = [
+  '/f/',
+  '/form/',
+  '/login',
+  '/embed.js',
+  '/api/health',
+  '/_next/',
+  '/favicon',
+  '/icon',
+  '/robots.txt',
+];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

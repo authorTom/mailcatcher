@@ -1,0 +1,6 @@
+# Nothing here benefits from being indexed. The dashboard is behind a login,
+# and hosted forms are reached by direct link from your own landing pages —
+# they should earn traffic through the page they are embedded on, not by
+# ranking separately.
+User-agent: *
+Disallow: /
