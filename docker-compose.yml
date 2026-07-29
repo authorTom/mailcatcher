@@ -16,9 +16,14 @@ services:
       # Signs session cookies and form timing tokens, and salts the IP hash.
       # Generate with: openssl rand -hex 32
       APP_SECRET: ${APP_SECRET:?Set APP_SECRET — generate one with `openssl rand -hex 32`}
-      # Argon2 hash of your admin password — NOT the password itself.
-      # Generate with: npm run hash-password
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH — generate one with `npm run hash-password`}
+      # The password you log in with, at least 10 characters. The container
+      # hashes it with argon2 at start-up, so there is nothing to generate
+      # first. Not marked required only because an install may supply the hash
+      # below instead — with neither set, the container exits and says so.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Optional alternative: a pre-computed argon2 hash, to keep the plaintext
+      # out of this file. Takes precedence. Generate with: npm run hash-password
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
       # The public URL visitors reach. Used for the copy-paste form snippets
       # shown in the dashboard, so set it to your real domain.
       APP_URL: ${APP_URL:-http://localhost:3000}

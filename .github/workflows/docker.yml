@@ -60,12 +60,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          HASH=$(docker run --rm mailcatcher:ci \
-            node -e "require('@node-rs/argon2').hash('ci-test-password').then(h=>console.log(h))")
-
+          # Plaintext on purpose: the entrypoint hashing it is the documented
+          # path, so this covers argon2 loading in the runtime image too.
           docker run -d --name mc-ci -p 3000:3000 -v mc-ci-data:/data \
             -e APP_SECRET=ci-image-test-secret \
-            -e ADMIN_PASSWORD_HASH="$HASH" \
+            -e ADMIN_PASSWORD=ci-test-password \
             mailcatcher:ci
 
           for i in $(seq 1 30); do
@@ -75,6 +74,9 @@ jobs:
 
           echo "--- container logs ---"
           docker logs mc-ci
+
+          echo "The entrypoint must have hashed the plaintext password:"
+          docker logs mc-ci 2>&1 | grep -q 'Hashed ADMIN_PASSWORD'
 
           echo "Container must still be running (a native-module crash shows up here):"
           test "$(docker inspect -f '{{.State.Running}}' mc-ci)" = "true"

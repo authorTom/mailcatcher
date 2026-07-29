@@ -48,14 +48,18 @@ and filtered CSV export.
 ```bash
 cp .env.example .env
 
-# Fill in the two required values:
-openssl rand -hex 32          # → APP_SECRET
-npm install && npm run hash-password   # → ADMIN_PASSWORD_HASH
+# Fill in the two required values in .env:
+#   APP_SECRET      — openssl rand -hex 32
+#   ADMIN_PASSWORD  — whatever you want to log in with, min 10 characters
 
 docker compose up -d
 ```
 
 Open <http://localhost:3000>. Migrations run automatically on start-up.
+
+You never generate a password hash. The container hashes `ADMIN_PASSWORD` with
+argon2 when it starts and hands only the hash to the server, so the plaintext
+lives in your compose environment and nowhere else.
 
 ### Using the published image
 
@@ -68,7 +72,7 @@ docker run -d \
   -p 3000:3000 \
   -v mailcatcher-data:/data \
   -e APP_SECRET="$(openssl rand -hex 32)" \
-  -e ADMIN_PASSWORD_HASH='...' \
+  -e ADMIN_PASSWORD='your-password-here' \
   -e APP_URL=https://mail.example.com \
   ghcr.io/authortom/mailcatcher:latest
 ```
@@ -84,11 +88,15 @@ in the stack's **Environment variables** section:
 | Name | Value |
 |---|---|
 | `APP_SECRET` | `openssl rand -hex 32` |
-| `ADMIN_PASSWORD_HASH` | see below |
+| `ADMIN_PASSWORD` | the password you want to log in with, min 10 characters |
 | `APP_URL` | optional, e.g. `https://mail.example.com` |
 
-You don't need a source checkout to generate the password hash — the image will
-do it for you:
+Nothing to generate and no source checkout needed — the container hashes the
+password itself on every start.
+
+If you would rather not have the plaintext sitting in a stack definition, set
+`ADMIN_PASSWORD_HASH` instead and leave `ADMIN_PASSWORD` empty. The image can
+produce the hash for you:
 
 ```bash
 docker run --rm ghcr.io/authortom/mailcatcher:latest \
@@ -96,7 +104,8 @@ docker run --rm ghcr.io/authortom/mailcatcher:latest \
   'your-password-here'
 ```
 
-Copy the whole `$argon2id$...` string into `ADMIN_PASSWORD_HASH`.
+Copy the whole `$argon2id$...` string into `ADMIN_PASSWORD_HASH`; it takes
+precedence when both are set.
 
 > If the stack fails with `compose build operation failed`, the compose file
 > being deployed still has a `build:` line in it. Portainer has no source to
@@ -106,7 +115,7 @@ Copy the whole `$argon2id$...` string into `ADMIN_PASSWORD_HASH`.
 
 ```bash
 npm install
-cp .env.example .env          # set APP_SECRET; ADMIN_PASSWORD=… is fine locally
+cp .env.example .env          # set APP_SECRET and ADMIN_PASSWORD
 npm run db:migrate
 npm run seed                  # optional: ~550 realistic contacts over 90 days
 npm run dev
@@ -172,10 +181,15 @@ contact's own columns.
 | Variable | Required | Purpose |
 |---|---|---|
 | `APP_SECRET` | Yes | Signs session cookies and form timing tokens, salts the IP hash. Changing it signs you out. |
-| `ADMIN_PASSWORD_HASH` | Yes | Argon2 hash of your password — `npm run hash-password`. |
+| `ADMIN_PASSWORD` | Yes | The password you log in with, min 10 characters. Hashed with argon2 at container start-up. |
 | `APP_URL` | No | Public URL, used for the setup snippets. Defaults to the request host. |
 | `DATABASE_PATH` | No | Defaults to `./data/mailcatcher.db`, or `/data/mailcatcher.db` in Docker. |
-| `ADMIN_PASSWORD` | No | Plaintext password for local development. **Refuses to run in production.** |
+| `ADMIN_PASSWORD_HASH` | No | A pre-computed argon2 hash — `npm run hash-password`. Use it instead of `ADMIN_PASSWORD` to keep the plaintext out of your compose file; it wins if both are set. |
+
+The server itself only ever verifies a hash. `ADMIN_PASSWORD` is turned into one
+by the container entrypoint, which then starts the server without the plaintext
+in its environment. Serving with `npm start` outside Docker skips the entrypoint,
+so that setup requires `ADMIN_PASSWORD_HASH`.
 
 ---
 
@@ -210,7 +224,7 @@ in particular would need outbound email.
 | `npm run db:migrate` | Apply migrations |
 | `npm run db:studio` | Browse the database |
 | `npm run seed` | Replace all data with a realistic 90-day fixture |
-| `npm run hash-password` | Generate `ADMIN_PASSWORD_HASH` |
+| `npm run hash-password` | Generate an optional `ADMIN_PASSWORD_HASH` |
 
 ---
 

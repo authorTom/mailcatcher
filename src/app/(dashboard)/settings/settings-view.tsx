@@ -179,12 +179,13 @@ function PasswordCard({ usingPlaintextPassword }: { usingPlaintextPassword: bool
       />
       <CardBody className="space-y-4">
         {usingPlaintextPassword && (
-          <p className="flex items-start gap-2 rounded-lg bg-danger-subtle px-3 py-2 text-xs text-danger">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <p className="flex items-start gap-2 rounded-lg bg-subtle px-3 py-2 text-xs text-muted">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
             <span>
-              You are using <code className="font-mono">ADMIN_PASSWORD</code> in plaintext. Generate a
-              hash below and switch to <code className="font-mono">ADMIN_PASSWORD_HASH</code> — the
-              app refuses to start with a plaintext password in production.
+              This install reads <code className="font-mono">ADMIN_PASSWORD</code> in plaintext. In
+              Docker that is the normal setup — the container hashes it at start-up. Serving with{' '}
+              <code className="font-mono">npm start</code> outside Docker needs{' '}
+              <code className="font-mono">ADMIN_PASSWORD_HASH</code> instead; generate one below.
             </span>
           </p>
         )}
