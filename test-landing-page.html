@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mail Catcher — test landing page</title>
+    <style>
+      :root {
+        --ink: #18181b;
+        --muted: #71717a;
+        --line: #e4e4e7;
+        --brand: #4f46e5;
+        color-scheme: light;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        color: var(--ink);
+        background: #fafafa;
+        line-height: 1.5;
+      }
+      .wrap { max-width: 940px; margin: 0 auto; padding: 40px 20px 80px; }
+      h1 { font-size: 1.6rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+      .lede { color: var(--muted); margin: 0 0 28px; }
+      .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+      .card h2 { font-size: 0.95rem; margin: 0 0 4px; }
+      .card p.note { color: var(--muted); font-size: 0.8rem; margin: 0 0 16px; }
+      label { display: block; font-size: 0.8rem; font-weight: 600; margin: 0 0 4px; }
+      input[type='email'], input[type='text'] {
+        width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+        border-radius: 8px; font-size: 0.9rem; margin-bottom: 12px; font-family: inherit;
+      }
+      input:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: var(--brand); }
+      button {
+        width: 100%; padding: 10px; background: var(--brand); color: #fff; border: 0;
+        border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit;
+      }
+      button:hover { opacity: 0.92; }
+      [data-mc-message] { font-size: 0.82rem; margin: 10px 0 0; min-height: 1.2em; }
+      form[data-mc-state='submitting'] button { opacity: 0.6; pointer-events: none; }
+      form[data-mc-state='success'] [data-mc-message] { color: #15803d; }
+      form[data-mc-state='error'] [data-mc-message] { color: #b91c1c; }
+      .hp { position: absolute !important; left: -9999px !important; width: 1px; height: 1px; overflow: hidden; }
+      code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-size: 0.82em; }
+      .banner {
+        background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px;
+        padding: 12px 14px; margin-bottom: 28px; font-size: 0.85rem;
+      }
+      .banner strong { display: block; margin-bottom: 2px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Mail Catcher — test landing page</h1>
+      <p class="lede">All three integration methods on one page, so you can watch submissions land in the dashboard.</p>
+
+      <div class="banner">
+        <strong>Before you start</strong>
+        Replace <code>YOUR_FORM_ID</code> below with a real id from
+        <code>/forms</code>, then open this file with a query string to test attribution, e.g.
+        <code>?utm_source=twitter&amp;utm_medium=social&amp;utm_campaign=launch</code>
+      </div>
+
+      <div class="grid">
+        <!-- 1 · Plain HTML: no JavaScript at all -->
+        <div class="card">
+          <h2>1 · Plain HTML form</h2>
+          <p class="note">No JS. The browser posts and follows a redirect to the thank-you page.</p>
+
+          <form action="http://localhost:3000/f/YOUR_FORM_ID" method="POST">
+            <label for="a-email">Email address</label>
+            <input id="a-email" type="email" name="email" placeholder="you@company.com" required />
+
+            <label for="a-name">Full name</label>
+            <input id="a-name" type="text" name="name" placeholder="Jane Bennett" />
+
+            <!-- Trap field: hidden off-screen, must stay empty. -->
+            <div class="hp" aria-hidden="true">
+              <input type="text" name="company_website" tabindex="-1" autocomplete="off" />
+            </div>
+
+            <button type="submit">Subscribe</button>
+          </form>
+        </div>
+
+        <!-- 2 · JS embed: inline feedback, automatic UTM capture -->
+        <div class="card">
+          <h2>2 · JavaScript embed</h2>
+          <p class="note">Inline success and errors, no page reload. UTMs captured automatically.</p>
+
+          <form data-mailcatcher="YOUR_FORM_ID">
+            <label for="b-email">Email address</label>
+            <input id="b-email" type="email" name="email" placeholder="you@company.com" required />
+
+            <label for="b-company">Company</label>
+            <input id="b-company" type="text" name="company" placeholder="Acme Ltd" />
+
+            <button type="submit">Subscribe</button>
+            <p data-mc-message role="status"></p>
+          </form>
+        </div>
+
+        <!-- 3 · Hosted form: nothing on your page at all -->
+        <div class="card">
+          <h2>3 · Hosted form</h2>
+          <p class="note">Mail Catcher renders it. Link to it, or embed the iframe below.</p>
+          <iframe
+            src="http://localhost:3000/form/YOUR_FORM_ID"
+            width="100%"
+            height="330"
+            frameborder="0"
+            style="border: 1px solid var(--line); border-radius: 8px"
+            title="Hosted signup form"
+          ></iframe>
+        </div>
+      </div>
+    </div>
+
+    <script src="http://localhost:3000/embed.js" async></script>
+  </body>
+</html>

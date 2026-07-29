@@ -1,0 +1,22 @@
+services:
+  mailcatcher:
+    build: .
+    image: mail-catcher
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      # Signs session cookies, the form timing token, and the IP hash salt.
+      # Generate with: openssl rand -hex 32
+      APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env}
+      # Generate with: npm run hash-password
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?set ADMIN_PASSWORD_HASH in .env}
+      # The public URL, used in the setup snippets shown in the dashboard.
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DATABASE_PATH: /data/mailcatcher.db
+    volumes:
+      # The entire application state is this one directory.
+      - mailcatcher-data:/data
+
+volumes:
+  mailcatcher-data:

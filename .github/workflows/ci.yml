@@ -1,0 +1,77 @@
+# Typecheck and build on every push and pull request. Fast enough to be the
+# gate the Docker workflow relies on: if this fails, the published image would
+# not have built either.
+#
+# Node 22 matches the Dockerfile's base image, so a version-specific failure
+# surfaces here rather than in a published image.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        # A placeholder secret only satisfies the production guard at build
+        # time; the real one comes from the environment at runtime.
+        run: npm run build
+        env:
+          APP_SECRET: build-time-placeholder
+
+      - name: Smoke-test the production server
+        # Assembles the standalone output exactly as the Dockerfile does, then
+        # boots it through the real entrypoint against a throwaway data
+        # directory: migrations must apply to an empty database, the server must
+        # answer its own healthcheck, and the dashboard must stay behind auth.
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/standalone"
+          mkdir -p "$STAGE/.next"
+          cp -R .next/standalone/. "$STAGE"/
+          cp -R .next/static "$STAGE/.next/static"
+          cp -R public "$STAGE/public"
+          cp -R drizzle "$STAGE/drizzle"
+          mkdir -p "$STAGE/scripts"
+          cp scripts/docker-entrypoint.mjs "$STAGE/scripts/"
+
+          cd "$STAGE"
+          NODE_ENV=production PORT=8080 HOSTNAME=127.0.0.1 \
+            DATABASE_PATH="$RUNNER_TEMP/data/mailcatcher.db" \
+            APP_SECRET=ci-smoke-test-secret \
+            ADMIN_PASSWORD_HASH='$argon2id$v=19$m=19456,t=2,p=1$fRdV9Gne33urhp0eYROiMw$QdcK7MJLC2U65JuJtWUfH/wHF2K+VnasiPXqQCDcTEU' \
+            node scripts/docker-entrypoint.mjs &
+
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/api/health >/dev/null 2>&1 && break
+            sleep 1
+          done
+
+          echo "Health:"
+          curl -fsS http://127.0.0.1:8080/api/health
+
+          echo "Dashboard must redirect an anonymous visitor to /login:"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/)" = "307"
+
+          echo "Contact export must not be reachable without a session:"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/export/contacts)" != "200"
+
+          echo "Migrations created the schema:"
+          test -f "$RUNNER_TEMP/data/mailcatcher.db"
