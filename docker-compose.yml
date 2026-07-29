@@ -1,22 +1,44 @@
+# Deploys the published image. Nothing is built, so this works unchanged in
+# Portainer, Dockge, or plain `docker compose up -d` on a server with no
+# source checkout.
+#
+# To build from source instead — only useful when you are changing the code —
+# add `build: .` to the service and run `docker compose up -d --build`.
+
 services:
   mailcatcher:
-    build: .
-    image: mail-catcher
+    image: ghcr.io/authortom/mailcatcher:latest
+    container_name: mailcatcher
     restart: unless-stopped
     ports:
       - '3000:3000'
     environment:
-      # Signs session cookies, the form timing token, and the IP hash salt.
+      # Signs session cookies and form timing tokens, and salts the IP hash.
       # Generate with: openssl rand -hex 32
-      APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env}
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET — generate one with `openssl rand -hex 32`}
+      # Argon2 hash of your admin password — NOT the password itself.
       # Generate with: npm run hash-password
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?set ADMIN_PASSWORD_HASH in .env}
-      # The public URL, used in the setup snippets shown in the dashboard.
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH — generate one with `npm run hash-password`}
+      # The public URL visitors reach. Used for the copy-paste form snippets
+      # shown in the dashboard, so set it to your real domain.
       APP_URL: ${APP_URL:-http://localhost:3000}
       DATABASE_PATH: /data/mailcatcher.db
     volumes:
-      # The entire application state is this one directory.
+      # The entire application state is this one directory — back it up by
+      # copying the file inside it.
       - mailcatcher-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
 volumes:
   mailcatcher-data:

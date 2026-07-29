@@ -1,6 +1,13 @@
 # Build and publish the Mail Catcher image to GitHub Container Registry.
 # Runs on every push to main (tagged :latest + :sha-<commit>) and on version
 # tags like v1.2.0 (tagged :1.2.0). Multi-arch: amd64 + arm64.
+#
+# The image is booted and health-checked before anything is pushed. That step
+# exists because a native dependency can be linked against a newer glibc than
+# the base image provides: the build succeeds, the layers publish, and the
+# container then dies on its first database call. Testing the built image is
+# the only thing that catches it — running the standalone output on the runner
+# does not, because the runner has its own, newer glibc.
 
 name: Docker image
 
@@ -38,7 +45,79 @@ jobs:
             type=sha
             type=semver,pattern={{version}}
 
-      - uses: docker/build-push-action@v6
+      # Single-arch build loaded into the local daemon so it can actually be run.
+      - name: Build for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: mailcatcher:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Boot the image and check it works
+        run: |
+          set -euo pipefail
+
+          HASH=$(docker run --rm mailcatcher:ci \
+            node -e "require('@node-rs/argon2').hash('ci-test-password').then(h=>console.log(h))")
+
+          docker run -d --name mc-ci -p 3000:3000 -v mc-ci-data:/data \
+            -e APP_SECRET=ci-image-test-secret \
+            -e ADMIN_PASSWORD_HASH="$HASH" \
+            mailcatcher:ci
+
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+
+          echo "--- container logs ---"
+          docker logs mc-ci
+
+          echo "Container must still be running (a native-module crash shows up here):"
+          test "$(docker inspect -f '{{.State.Running}}' mc-ci)" = "true"
+
+          echo "Health endpoint:"
+          curl -fsS http://127.0.0.1:3000/api/health
+
+          echo "Dashboard must redirect an anonymous visitor:"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/)" = "307"
+
+          echo "Login page must render:"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)" = "200"
+
+          echo "Migrations must have created the database on the volume:"
+          docker exec mc-ci test -f /data/mailcatcher.db
+
+          echo "Ingest must accept a submission and store the contact:"
+          docker exec mc-ci node -e "
+            const D = require('better-sqlite3');
+            const d = new D('/data/mailcatcher.db');
+            d.prepare('insert into forms (id,name,slug,status,fields,settings,created_at,updated_at) values (?,?,?,?,?,?,?,?)').run(
+              'citestform','CI test','ci-test','active',
+              JSON.stringify([{key:'email',label:'Email',type:'email',required:true}]),
+              JSON.stringify({redirectUrl:null,successMessage:'Thanks!',themeColor:'#4f46e5',honeypotName:'company_website',allowedOrigins:[]}),
+              Date.now(), Date.now());
+          "
+          curl -fsS -X POST http://127.0.0.1:3000/f/citestform \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ci@example.com"}' | grep -q '"ok":true'
+
+          docker exec mc-ci node -e "
+            const D = require('better-sqlite3');
+            const n = new D('/data/mailcatcher.db')
+              .prepare(\"select count(*) c from contacts where email = 'ci@example.com'\").get().c;
+            if (n !== 1) { console.error('contact was not stored'); process.exit(1); }
+            console.log('Contact stored.');
+          "
+
+          docker rm -f mc-ci >/dev/null
+
+      # Only now publish, multi-arch. The layers are already cached above.
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64

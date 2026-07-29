@@ -60,7 +60,8 @@ Open <http://localhost:3000>. Migrations run automatically on start-up.
 ### Using the published image
 
 Every push to `main` publishes a multi-arch image (amd64 + arm64) to GitHub
-Container Registry, so you can skip the build entirely:
+Container Registry. `docker-compose.yml` already points at it, so nothing is
+built on your server:
 
 ```bash
 docker run -d \
@@ -73,8 +74,33 @@ docker run -d \
 ```
 
 Tags: `latest` (current `main`), `sha-<commit>`, and `1.2.0` for `v1.2.0` releases.
-To use it with the compose file, replace `build: .` with
-`image: ghcr.io/authortom/mailcatcher:latest`.
+
+### Portainer (or any stack manager)
+
+Paste `docker-compose.yml` into the stack editor as-is — it pulls the published
+image, so Portainer never needs a build context. Set two environment variables
+in the stack's **Environment variables** section:
+
+| Name | Value |
+|---|---|
+| `APP_SECRET` | `openssl rand -hex 32` |
+| `ADMIN_PASSWORD_HASH` | see below |
+| `APP_URL` | optional, e.g. `https://mail.example.com` |
+
+You don't need a source checkout to generate the password hash — the image will
+do it for you:
+
+```bash
+docker run --rm ghcr.io/authortom/mailcatcher:latest \
+  node -e "require('@node-rs/argon2').hash(process.argv[1]).then(h=>console.log(h))" \
+  'your-password-here'
+```
+
+Copy the whole `$argon2id$...` string into `ADMIN_PASSWORD_HASH`.
+
+> If the stack fails with `compose build operation failed`, the compose file
+> being deployed still has a `build:` line in it. Portainer has no source to
+> build from — use the `image:` line above instead.
 
 ### Local development
 

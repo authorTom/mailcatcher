@@ -3,11 +3,15 @@
 # ------------------------------------------------------------------
 # Dependencies
 # ------------------------------------------------------------------
-FROM node:22-bookworm-slim AS deps
+FROM node:22-trixie-slim AS deps
 WORKDIR /app
 
 # better-sqlite3 ships prebuilt binaries for this platform, but keep the
 # toolchain available so a fallback source build can still succeed.
+#
+# The base image must be Debian trixie or newer: better-sqlite3's prebuilt
+# binary is linked against glibc 2.38, and bookworm only ships 2.36 — the
+# image builds fine either way but crashes on the first database call.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,7 +21,7 @@ RUN npm ci
 # ------------------------------------------------------------------
 # Build
 # ------------------------------------------------------------------
-FROM node:22-bookworm-slim AS builder
+FROM node:22-trixie-slim AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -32,7 +36,7 @@ RUN npm run build
 # ------------------------------------------------------------------
 # Runtime
 # ------------------------------------------------------------------
-FROM node:22-bookworm-slim AS runner
+FROM node:22-trixie-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
