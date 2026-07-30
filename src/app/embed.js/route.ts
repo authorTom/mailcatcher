@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { publicOrigin } from '@/lib/origin';
+
 export const runtime = 'nodejs';
 
 /**
@@ -173,7 +175,7 @@ const SCRIPT = String.raw`
 `.trim();
 
 export async function GET(request: NextRequest) {
-  const origin = new URL(request.url).origin;
+  const origin = publicOrigin(request.headers, request.url);
   const body = SCRIPT.replace('__ORIGIN__', origin);
 
   return new NextResponse(body, {

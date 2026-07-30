@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { corsHeaders, getForm, isOriginAllowed } from '@/lib/forms';
 import { ingest } from '@/lib/ingest';
+import { publicOrigin, publicUrl } from '@/lib/origin';
 import { clientIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -34,7 +35,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   const { formId } = await params;
   const form = getForm(formId);
   if (!form) return new NextResponse('Form not found', { status: 404 });
-  return NextResponse.redirect(new URL(`/form/${formId}`, _request.url), 302);
+  return NextResponse.redirect(publicUrl(`/form/${formId}`, _request.headers, _request.url), 302);
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
@@ -175,20 +176,22 @@ function resolveRedirect(
   requested: string | undefined,
   request: NextRequest,
 ): URL {
+  // Relative targets resolve against the public origin, not the address this
+  // process listens on — otherwise the browser is sent to the container.
+  const self = publicOrigin(request.headers, request.url);
+  const thanks = new URL(`/form/${form.id}/thanks`, self);
+
   const configured = form.settings.redirectUrl;
-  const fallback = configured
-    ? absoluteOrNull(configured, request) ?? new URL(`/form/${form.id}/thanks`, request.url)
-    : new URL(`/form/${form.id}/thanks`, request.url);
+  const fallback = configured ? absoluteOrNull(configured, self) ?? thanks : thanks;
 
   if (!requested) return fallback;
 
-  const candidate = absoluteOrNull(requested, request);
+  const candidate = absoluteOrNull(requested, self);
   if (!candidate) return fallback;
 
-  const self = new URL(request.url);
-  if (candidate.origin === self.origin) return candidate;
+  if (candidate.origin === new URL(self).origin) return candidate;
   if (configured) {
-    const configuredUrl = absoluteOrNull(configured, request);
+    const configuredUrl = absoluteOrNull(configured, self);
     if (configuredUrl && candidate.origin === configuredUrl.origin) return candidate;
   }
   if (isOriginAllowed(form.settings.allowedOrigins ?? [], candidate.origin)) {
@@ -200,9 +203,9 @@ function resolveRedirect(
   return fallback;
 }
 
-function absoluteOrNull(value: string, request: NextRequest): URL | null {
+function absoluteOrNull(value: string, base: string): URL | null {
   try {
-    const url = new URL(value, request.url);
+    const url = new URL(value, base);
     return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
   } catch {
     return null;

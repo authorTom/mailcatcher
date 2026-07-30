@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation';
 import { db } from '@/db';
 import { contacts, formStats, forms, submissions } from '@/db/schema';
 import { getForm } from '@/lib/forms';
+import { publicOrigin } from '@/lib/origin';
 import { FormDetail } from './form-detail';
 
 export const dynamic = 'force-dynamic';
@@ -19,22 +20,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: getForm(formId)?.name ?? 'Form' };
 }
 
-/** The public origin, so the setup snippets show a URL that actually works. */
-async function publicOrigin(): Promise<string> {
-  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/+$/, '');
-
-  const headerList = await headers();
-  const host = headerList.get('x-forwarded-host') ?? headerList.get('host') ?? 'localhost:3000';
-  const protocol = headerList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-  return `${protocol}://${host}`;
-}
-
 export default async function FormDetailPage({ params }: Props) {
   const { formId } = await params;
   const form = getForm(formId);
   if (!form) notFound();
 
-  const origin = await publicOrigin();
+  // The setup snippets must show the URL a visitor's browser can reach.
+  const origin = publicOrigin(await headers());
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
 

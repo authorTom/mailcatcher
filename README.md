@@ -89,7 +89,7 @@ in the stack's **Environment variables** section:
 |---|---|
 | `APP_SECRET` | `openssl rand -hex 32` |
 | `ADMIN_PASSWORD` | the password you want to log in with, min 10 characters |
-| `APP_URL` | optional, e.g. `https://mail.example.com` |
+| `APP_URL` | optional but recommended, e.g. `https://mail.example.com` |
 
 Nothing to generate and no source checkout needed — the container hashes the
 password itself on every start.
@@ -182,7 +182,7 @@ contact's own columns.
 |---|---|---|
 | `APP_SECRET` | Yes | Signs session cookies and form timing tokens, salts the IP hash. Changing it signs you out. |
 | `ADMIN_PASSWORD` | Yes | The password you log in with, min 10 characters. Hashed with argon2 at container start-up. |
-| `APP_URL` | No | Public URL, used for the setup snippets. Defaults to the request host. |
+| `APP_URL` | No | Public URL, e.g. `https://mail.example.com`. Used for the setup snippets and for the redirect after a plain HTML form POST. Defaults to the host your proxy forwards — set it explicitly if that proxy does not send `X-Forwarded-Host` and `X-Forwarded-Proto`. |
 | `DATABASE_PATH` | No | Defaults to `./data/mailcatcher.db`, or `/data/mailcatcher.db` in Docker. |
 | `ADMIN_PASSWORD_HASH` | No | A pre-computed argon2 hash — `npm run hash-password`. Use it instead of `ADMIN_PASSWORD` to keep the plaintext out of your compose file; it wins if both are set. |
 
