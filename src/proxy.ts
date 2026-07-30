@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
+import { publicUrl } from '@/lib/origin';
 
 /**
  * Everything is private except the paths a landing page needs to reach — the
@@ -32,7 +33,7 @@ export async function proxy(request: NextRequest) {
   const authenticated = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
   if (authenticated) return NextResponse.next();
 
-  const loginUrl = new URL('/login', request.url);
+  const loginUrl = publicUrl('/login', request.headers, request.url);
   // Send the user back where they were heading once they sign in.
   if (pathname !== '/') loginUrl.searchParams.set('next', pathname + request.nextUrl.search);
   return NextResponse.redirect(loginUrl);

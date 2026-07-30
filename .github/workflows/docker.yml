@@ -115,6 +115,17 @@ jobs:
             console.log('Contact stored.');
           "
 
+          echo "A plain form POST must redirect to the public host, not the container's own address:"
+          location=$(curl -s -o /dev/null -D - -X POST http://127.0.0.1:3000/f/citestform \
+            -H 'X-Forwarded-Host: forms.example.com' \
+            -H 'X-Forwarded-Proto: https' \
+            -d 'email=ci-redirect@example.com' | grep -i '^location:' | tr -d '\r')
+          echo "  $location"
+          case "$location" in
+            *https://forms.example.com/form/citestform/thanks*) ;;
+            *) echo "wrong redirect target"; exit 1 ;;
+          esac
+
           docker rm -f mc-ci >/dev/null
 
       # Only now publish, multi-arch. The layers are already cached above.

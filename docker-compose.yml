@@ -24,9 +24,12 @@ services:
       # Optional alternative: a pre-computed argon2 hash, to keep the plaintext
       # out of this file. Takes precedence. Generate with: npm run hash-password
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
-      # The public URL visitors reach. Used for the copy-paste form snippets
-      # shown in the dashboard, so set it to your real domain.
-      APP_URL: ${APP_URL:-http://localhost:3000}
+      # The public URL visitors reach — set it to your real domain. Used for the
+      # copy-paste snippets in the dashboard and for the redirect after a plain
+      # HTML form POST. Left unset, both fall back to the proxy's forwarded
+      # headers, which is right for most setups but wrong for a proxy that does
+      # not send them.
+      APP_URL: ${APP_URL:-}
       DATABASE_PATH: /data/mailcatcher.db
     volumes:
       # The entire application state is this one directory — back it up by
